@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Activity,
@@ -27,6 +27,8 @@ import {
   Sparkles,
   Stethoscope,
   Trash2,
+  TrendingDown,
+  TrendingUp,
   UserRound,
   Video,
   X,
@@ -128,13 +130,19 @@ const styles = `
   .search-box svg { color: var(--muted-2); }
   .queue-list { display: flex; flex-direction: column; gap: 8px; }
   .patient-button { width: 100%; text-align: left; border: 1px solid var(--border); background: white; border-radius: 18px; padding: 12px; transition: 150ms ease; color: var(--text); }
-  .patient-button:hover { background: #f8fafc; border-color: #cbd5e1; }
-  .patient-button.selected { border-color: var(--emerald-300); background: var(--emerald-50); box-shadow: var(--shadow-md); outline: 1px solid var(--emerald-200); }
+  .patient-button.queue-blocked { background: var(--red-50); border-color: #fecaca; }
+  .patient-button.queue-ready { background: var(--emerald-50); border-color: var(--emerald-200); }
+  .patient-button.queue-needs-info { background: var(--amber-50); border-color: var(--amber-200); }
+  .patient-button:hover { filter: saturate(1.08); box-shadow: var(--shadow-sm); }
+  .patient-button.selected { box-shadow: var(--shadow-md); outline: 1px solid currentColor; }
+  .patient-button.queue-blocked.selected { color: var(--red-700); }
+  .patient-button.queue-ready.selected { color: var(--emerald-700); }
+  .patient-button.queue-needs-info.selected { color: var(--amber-800); }
   .patient-top { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
   .patient-name-row { display: flex; align-items: center; gap: 8px; }
   .patient-name { font-weight: 800; }
   .patient-age, .patient-med, .patient-time { color: var(--muted); font-size: 12px; }
-  .patient-button.selected .patient-age, .patient-button.selected .patient-med, .patient-button.selected .patient-time, .patient-button.selected .chevron { color: var(--emerald-700); }
+  .patient-button.selected .patient-age, .patient-button.selected .patient-med, .patient-button.selected .patient-time, .patient-button.selected .chevron { color: currentColor; }
   .patient-med { margin-top: 4px; }
   .patient-bottom { margin-top: 12px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
   .chevron { color: var(--muted-2); }
@@ -256,9 +264,22 @@ const styles = `
   .fact-label { margin: 0; color: var(--muted-2); text-transform: uppercase; letter-spacing: 0.06em; font-size: 12px; font-weight: 900; }
   .fact-value { margin: 4px 0 0; font-size: 14px; font-weight: 800; color: var(--text); }
   .vitals-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 16px; }
-  .vital { background: #f8fafc; border: 1px solid var(--border); border-radius: 18px; padding: 16px; }
+  .vital { background: #f8fafc; border: 1px solid var(--border); border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .vital-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
   .vital-label { margin: 0; color: var(--muted-2); text-transform: uppercase; letter-spacing: 0.06em; font-size: 12px; font-weight: 900; }
-  .vital-value { margin: 8px 0 0; font-size: 22px; font-weight: 900; }
+  .vital-value { margin: 6px 0 0; font-size: 22px; font-weight: 900; line-height: 1; }
+  .vital-range { margin: 4px 0 0; color: var(--muted); font-size: 12px; font-weight: 700; }
+  .vital-trend-badge { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 4px 8px; font-size: 11px; font-weight: 800; white-space: nowrap; }
+  .vital-trend-badge.worsening { background: var(--red-50); color: var(--red-700); border: 1px solid #fecaca; }
+  .vital-trend-badge.improving { background: var(--emerald-50); color: var(--emerald-700); border: 1px solid var(--emerald-200); }
+  .vital-trend-badge.stable { background: #f1f5f9; color: var(--muted); border: 1px solid var(--border); }
+  .vital-trend-badge.pending { background: var(--amber-50); color: var(--amber-800); border: 1px solid var(--amber-200); }
+  .vital-chart { height: 52px; min-height: 52px; flex-shrink: 0; width: 100%; position: relative; }
+  .vital-chart.pending { display: grid; place-items: center; border: 1px dashed var(--border); border-radius: 12px; background: #f8fafc; color: var(--muted-2); font-size: 10px; font-weight: 800; min-height: 52px; }
+  .vital-chart svg { display: block; width: 100%; height: 52px; overflow: visible; }
+  .vital-chart-caption { display: flex; justify-content: space-between; color: var(--muted-2); font-size: 10px; font-weight: 700; letter-spacing: 0.02em; }
+  .lab-trend-line { height: 58px; min-height: 58px; width: 100%; border-radius: 12px; background: white; border: 1px solid var(--border-soft); overflow: hidden; }
+  .lab-trend-line svg { display: block; width: 100%; height: 58px; }
   .list { display: flex; flex-direction: column; }
   .list-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px; border-top: 1px solid var(--border-soft); }
   .list-row:first-child { border-top: 0; }
@@ -335,10 +356,40 @@ const patients = [
     outcome: "Avoid therapy delay while preserving payer and safety requirements.",
     allergies: ["Penicillin", "Sulfa"],
     vitals: { bp: "132/78", hr: "76", temp: "98.4°F", spo2: "98%" },
+    vitalHistory: {
+      bp: [118, 121, 124, 126, 128, 130, 132],
+      hr: [68, 69, 71, 72, 73, 75, 76],
+      temp: [98.0, 98.1, 98.1, 98.2, 98.3, 98.3, 98.4],
+      spo2: [99, 99, 98, 98, 98, 98, 98],
+    },
     labs: [
-      { name: "TB Quantiferon", value: "Pending", range: "Required before biologic start", flag: "warning" },
-      { name: "CRP", value: "18 mg/L", range: "< 8 mg/L", flag: "high" },
-      { name: "AST", value: "24 U/L", range: "10–40 U/L", flag: "normal" },
+      {
+        name: "TB Quantiferon",
+        value: "Pending",
+        range: "Required before biologic start",
+        flag: "warning",
+        pending: true,
+      },
+      {
+        name: "CRP",
+        value: "18 mg/L",
+        range: "< 8 mg/L",
+        flag: "high",
+        history: [8, 10, 11, 13, 14, 16, 18],
+        worse: "up",
+        unit: "mg/L",
+        stableThreshold: 1,
+      },
+      {
+        name: "AST",
+        value: "24 U/L",
+        range: "10–40 U/L",
+        flag: "normal",
+        history: [22, 23, 23, 24, 24, 24, 24],
+        worse: "up",
+        unit: "U/L",
+        stableThreshold: 2,
+      },
     ],
     meds: [
       { name: "Methotrexate", dose: "15 mg weekly", status: "Active" },
@@ -368,10 +419,43 @@ const patients = [
     outcome: "Move patient to dispense review without adding avoidable friction.",
     allergies: ["None documented"],
     vitals: { bp: "126/74", hr: "72", temp: "98.1°F", spo2: "99%" },
+    vitalHistory: {
+      bp: [134, 132, 130, 129, 128, 127, 126],
+      hr: [74, 73, 73, 72, 72, 72, 72],
+      temp: [98.3, 98.2, 98.2, 98.1, 98.1, 98.1, 98.1],
+      spo2: [98, 98, 99, 99, 99, 99, 99],
+    },
     labs: [
-      { name: "A1c", value: "8.2%", range: "< 7.0%", flag: "high" },
-      { name: "eGFR", value: "82", range: "> 60", flag: "normal" },
-      { name: "ALT", value: "29 U/L", range: "7–56 U/L", flag: "normal" },
+      {
+        name: "A1c",
+        value: "8.2%",
+        range: "< 7.0%",
+        flag: "high",
+        history: [9.1, 8.9, 8.7, 8.5, 8.4, 8.3, 8.2],
+        worse: "up",
+        unit: "%",
+        stableThreshold: 0.2,
+      },
+      {
+        name: "eGFR",
+        value: "82",
+        range: "> 60",
+        flag: "normal",
+        history: [84, 83, 83, 82, 82, 82, 82],
+        worse: "down",
+        unit: "mL/min",
+        stableThreshold: 2,
+      },
+      {
+        name: "ALT",
+        value: "29 U/L",
+        range: "7–56 U/L",
+        flag: "normal",
+        history: [30, 29, 29, 29, 29, 29, 29],
+        worse: "up",
+        unit: "U/L",
+        stableThreshold: 2,
+      },
     ],
     meds: [
       { name: "Metformin", dose: "1000 mg BID", status: "Active" },
@@ -396,10 +480,43 @@ const patients = [
     outcome: "Prevent avoidable denial by attaching current cardiac evidence.",
     allergies: ["Codeine"],
     vitals: { bp: "118/68", hr: "64", temp: "97.9°F", spo2: "96%" },
+    vitalHistory: {
+      bp: [120, 119, 119, 118, 118, 118, 118],
+      hr: [58, 59, 60, 61, 62, 63, 64],
+      temp: [98.0, 98.0, 97.9, 97.9, 97.9, 97.9, 97.9],
+      spo2: [98, 98, 97, 97, 96, 96, 96],
+    },
     labs: [
-      { name: "BNP", value: "421 pg/mL", range: "< 100", flag: "high" },
-      { name: "Creatinine", value: "1.1 mg/dL", range: "0.6–1.2", flag: "normal" },
-      { name: "Potassium", value: "4.8 mmol/L", range: "3.5–5.1", flag: "normal" },
+      {
+        name: "BNP",
+        value: "421 pg/mL",
+        range: "< 100",
+        flag: "high",
+        history: [280, 310, 340, 370, 390, 410, 421],
+        worse: "up",
+        unit: "pg/mL",
+        stableThreshold: 15,
+      },
+      {
+        name: "Creatinine",
+        value: "1.1 mg/dL",
+        range: "0.6–1.2",
+        flag: "normal",
+        history: [1.0, 1.0, 1.0, 1.05, 1.08, 1.1, 1.1],
+        worse: "up",
+        unit: "mg/dL",
+        stableThreshold: 0.05,
+      },
+      {
+        name: "Potassium",
+        value: "4.8 mmol/L",
+        range: "3.5–5.1",
+        flag: "normal",
+        history: [4.6, 4.7, 4.7, 4.8, 4.8, 4.8, 4.8],
+        worse: "up",
+        unit: "mmol/L",
+        stableThreshold: 0.2,
+      },
     ],
     meds: [
       { name: "Carvedilol", dose: "12.5 mg BID", status: "Active" },
@@ -411,6 +528,281 @@ const patients = [
 ];
 
 const tabs = ["Overview", "Medications", "Labs", "Orders", "Notes"];
+
+const VITAL_TREND_CONFIG = {
+  bp: { label: "BP", worse: "up", unit: "mmHg sys", stableThreshold: 3 },
+  hr: { label: "HR", worse: "up", unit: "bpm", stableThreshold: 2 },
+  temp: { label: "Temp", worse: "up", unit: "°F", stableThreshold: 0.2 },
+  spo2: { label: "SpO₂", worse: "down", unit: "%", stableThreshold: 0.5 },
+};
+
+function getTrendMeta(values, worseDirection, stableThreshold) {
+  const first = values[0];
+  const last = values[values.length - 1];
+  const delta = last - first;
+  const absDelta = Math.abs(delta);
+  const pctChange = first === 0 ? 0 : (delta / first) * 100;
+
+  let status = "stable";
+  if (absDelta > stableThreshold) {
+    const worsening = worseDirection === "up" ? delta > 0 : delta < 0;
+    status = worsening ? "worsening" : "improving";
+  }
+
+  const deltaLabel = `${delta > 0 ? "+" : ""}${Number.isInteger(delta) ? delta : delta.toFixed(1)}`;
+
+  return { status, delta, deltaLabel, pctChange, first, last };
+}
+
+function buildSparklinePath(values, width, height, padding = 6) {
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min;
+  const innerWidth = width - padding * 2;
+  const innerHeight = height - padding * 2;
+  const step = values.length > 1 ? innerWidth / (values.length - 1) : 0;
+
+  const points = values.map((value, index) => {
+    const x = padding + index * step;
+    const normalized = range === 0 ? 0.5 : (value - min) / range;
+    const y = padding + innerHeight - normalized * innerHeight;
+    return { x, y };
+  });
+
+  const linePath = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(" ");
+  const areaPath = `${linePath} L ${points[points.length - 1].x.toFixed(2)} ${(height - padding).toFixed(2)} L ${points[0].x.toFixed(2)} ${(height - padding).toFixed(2)} Z`;
+
+  return { points, linePath, areaPath, min, max };
+}
+
+function TrendSparklineChart({ values, status, chartId }) {
+  const uid = useId().replace(/:/g, "");
+  const width = 240;
+  const height = 52;
+  const safeValues = Array.isArray(values) && values.length > 1 ? values : [0, 0];
+  const { points, linePath, areaPath } = buildSparklinePath(safeValues, width, height);
+  const stroke =
+    status === "worsening" ? "#dc2626" : status === "improving" ? "#047857" : "#64748b";
+  const fillId = `trend-fill-${chartId}-${uid}`;
+
+  return (
+    <div className="vital-chart">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        width={width}
+        height={height}
+        preserveAspectRatio="none"
+        role="img"
+        aria-label={`${chartId} trend`}
+        style={{ width: "100%", height: "52px", display: "block" }}
+      >
+        <defs>
+          <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={stroke} stopOpacity="0.35" />
+            <stop offset="100%" stopColor={stroke} stopOpacity="0.04" />
+          </linearGradient>
+        </defs>
+        <rect x="0" y="0" width={width} height={height} fill="rgba(248, 250, 252, 0.85)" rx="8" />
+        <path d={areaPath} fill={`url(#${fillId})`} />
+        <path
+          d={linePath}
+          fill="none"
+          stroke={stroke}
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        {points.map((point, index) => (
+          <circle
+            key={`${chartId}-${index}`}
+            cx={point.x}
+            cy={point.y}
+            r={index === points.length - 1 ? 3.5 : 2.25}
+            fill={index === points.length - 1 ? stroke : "#ffffff"}
+            stroke={stroke}
+            strokeWidth={index === points.length - 1 ? 0 : 1.75}
+          />
+        ))}
+      </svg>
+    </div>
+  );
+}
+
+function TrendMetricCard({ label, value, subtitle, history, worse, unit, stableThreshold, chartId, pending = false }) {
+  if (pending) {
+    return (
+      <div className="vital">
+        <div className="vital-head">
+          <div>
+            <p className="vital-label">{label}</p>
+            <p className="vital-value">{value}</p>
+            {subtitle ? <p className="vital-range">{subtitle}</p> : null}
+          </div>
+          <span className="vital-trend-badge pending">
+            <AlertTriangle size={12} />
+            Pending
+          </span>
+        </div>
+        <div className="vital-chart pending">No trend until result posted</div>
+        <div className="vital-chart-caption">
+          <span>Ordered</span>
+          <span>Awaiting</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!Array.isArray(history) || history.length < 2) {
+    return (
+      <div className="vital">
+        <div className="vital-head">
+          <div>
+            <p className="vital-label">{label}</p>
+            <p className="vital-value">{value}</p>
+            {subtitle ? <p className="vital-range">{subtitle}</p> : null}
+          </div>
+          <span className="vital-trend-badge pending">
+            <AlertTriangle size={12} />
+            No trend
+          </span>
+        </div>
+        <div className="vital-chart pending">Insufficient history for trend line</div>
+      </div>
+    );
+  }
+
+  const trend = getTrendMeta(history, worse, stableThreshold);
+  const TrendIcon =
+    trend.status === "stable" ? Activity : trend.delta > 0 ? TrendingUp : TrendingDown;
+  const trendText = trend.status === "stable" ? "Stable" : `${trend.deltaLabel} ${unit}`;
+
+  return (
+    <div className="vital">
+      <div className="vital-head">
+        <div>
+          <p className="vital-label">{label}</p>
+          <p className="vital-value">{value}</p>
+          {subtitle ? <p className="vital-range">{subtitle}</p> : null}
+        </div>
+        <span className={`vital-trend-badge ${trend.status}`}>
+          <TrendIcon size={12} />
+          {trendText}
+        </span>
+      </div>
+      <TrendSparklineChart values={history} status={trend.status} chartId={chartId} />
+      <div className="vital-chart-caption">
+        <span>6 days ago</span>
+        <span>Today</span>
+      </div>
+    </div>
+  );
+}
+
+function Vital({ label, value, history, configKey }) {
+  const config = VITAL_TREND_CONFIG[configKey];
+  return (
+    <TrendMetricCard
+      label={label}
+      value={value}
+      history={history}
+      worse={config.worse}
+      unit={config.unit}
+      stableThreshold={config.stableThreshold}
+      chartId={`vital-${configKey}`}
+    />
+  );
+}
+
+function LabSparkline({ values, status }) {
+  const width = 260;
+  const height = 58;
+  const { points, linePath, areaPath } = buildSparklinePath(values, width, height, 7);
+  const stroke =
+    status === "worsening" ? "#dc2626" : status === "improving" ? "#047857" : "#64748b";
+
+  return (
+    <div className="lab-trend-line" aria-label="Lab trend line">
+      <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
+        <path d="M 7 29 L 253 29" stroke="#e2e8f0" strokeWidth="1.5" strokeDasharray="5 5" />
+        <path d={areaPath} fill={stroke} opacity="0.12" />
+        <path d={linePath} fill="none" stroke={stroke} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        {points.map((point, index) => (
+          <circle
+            key={`${point.x}-${index}`}
+            cx={point.x}
+            cy={point.y}
+            r={index === points.length - 1 ? 4 : 2.75}
+            fill={index === points.length - 1 ? stroke : "#ffffff"}
+            stroke={stroke}
+            strokeWidth="2"
+          />
+        ))}
+      </svg>
+    </div>
+  );
+}
+
+function Lab({ lab, patientId }) {
+  const chartKey = lab.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  const chartId = `${patientId}-lab-${chartKey}`;
+
+  if (lab.pending) {
+    return (
+      <TrendMetricCard
+        label={lab.name}
+        value={lab.value}
+        subtitle={lab.range}
+        history={lab.history}
+        worse={lab.worse}
+        unit={lab.unit}
+        stableThreshold={lab.stableThreshold}
+        chartId={chartId}
+        pending
+      />
+    );
+  }
+
+  if (!Array.isArray(lab.history) || lab.history.length < 2) {
+    return (
+      <TrendMetricCard
+        label={lab.name}
+        value={lab.value}
+        subtitle={lab.range}
+        history={lab.history}
+        worse={lab.worse}
+        unit={lab.unit}
+        stableThreshold={lab.stableThreshold}
+        chartId={chartId}
+      />
+    );
+  }
+
+  const trend = getTrendMeta(lab.history, lab.worse, lab.stableThreshold);
+  const TrendIcon =
+    trend.status === "stable" ? Activity : trend.delta > 0 ? TrendingUp : TrendingDown;
+  const trendText = trend.status === "stable" ? "Stable" : `${trend.deltaLabel} ${lab.unit}`;
+
+  return (
+    <div className="vital">
+      <div className="vital-head">
+        <div>
+          <p className="vital-label">{lab.name}</p>
+          <p className="vital-value">{lab.value}</p>
+          <p className="vital-range">{lab.range}</p>
+        </div>
+        <span className={`vital-trend-badge ${trend.status}`}>
+          <TrendIcon size={12} />
+          {trendText}
+        </span>
+      </div>
+      <LabSparkline values={lab.history} status={trend.status} />
+      <div className="vital-chart-caption">
+        <span>6 days ago</span>
+        <span>Today</span>
+      </div>
+    </div>
+  );
+}
 
 const walkthroughSteps = [
   {
@@ -480,6 +872,10 @@ function RiskPill({ risk }) {
   return <span className={`risk-pill risk-${risk.toLowerCase()}`}>{risk}</span>;
 }
 
+function getStatusKey(status) {
+  return status === "Needs Info" ? "needs-info" : status.toLowerCase();
+}
+
 function PatientQueue({ selectedId, onSelect }) {
   return (
     <Card>
@@ -492,11 +888,12 @@ function PatientQueue({ selectedId, onSelect }) {
         <div className="queue-list">
           {patients.map((patient) => {
             const active = patient.id === selectedId;
+            const statusKey = getStatusKey(patient.status);
             return (
               <button
                 key={patient.id}
                 type="button"
-                className={`patient-button ${active ? "selected" : ""}`}
+                className={`patient-button queue-${statusKey} ${active ? "selected" : ""}`}
                 onClick={() => onSelect(patient.id)}
               >
                 <div className="patient-top">
@@ -1009,15 +1406,6 @@ function SmallFact({ label, value }) {
   );
 }
 
-function Vital({ label, value }) {
-  return (
-    <div className="vital">
-      <p className="vital-label">{label}</p>
-      <p className="vital-value">{value}</p>
-    </div>
-  );
-}
-
 function Note({ title, meta, text }) {
   return (
     <article className="note">
@@ -1051,14 +1439,10 @@ function ChartContent({ patient, activeTab }) {
   if (activeTab === "Labs") {
     return (
       <Card>
-        <CardHeader icon={HeartPulse} title="Recent Labs" subtitle="Evidence used for clinical and access decisions" />
-        <div className="list">
+        <CardHeader icon={HeartPulse} title="Recent Labs" subtitle="7-day trend · current reading" />
+        <div className="vitals-grid">
           {patient.labs.map((lab) => (
-            <div key={lab.name} className="lab-row">
-              <p className="list-title">{lab.name}</p>
-              <span className={`lab-value lab-${lab.flag}`}>{lab.value}</span>
-              <p className="list-copy">{lab.range}</p>
-            </div>
+            <Lab key={lab.name} lab={lab} patientId={patient.id} />
           ))}
         </div>
       </Card>
@@ -1132,12 +1516,12 @@ function ChartContent({ patient, activeTab }) {
       </Card>
 
       <Card>
-        <CardHeader icon={Activity} title="Vitals Snapshot" subtitle="Mock clinical status" />
+        <CardHeader icon={Activity} title="Vitals Snapshot" subtitle="7-day trend · current reading" />
         <div className="vitals-grid">
-          <Vital label="BP" value={patient.vitals.bp} />
-          <Vital label="HR" value={patient.vitals.hr} />
-          <Vital label="Temp" value={patient.vitals.temp} />
-          <Vital label="SpO₂" value={patient.vitals.spo2} />
+          <Vital label="BP" value={patient.vitals.bp} history={patient.vitalHistory.bp} configKey="bp" />
+          <Vital label="HR" value={patient.vitals.hr} history={patient.vitalHistory.hr} configKey="hr" />
+          <Vital label="Temp" value={patient.vitals.temp} history={patient.vitalHistory.temp} configKey="temp" />
+          <Vital label="SpO₂" value={patient.vitals.spo2} history={patient.vitalHistory.spo2} configKey="spo2" />
         </div>
       </Card>
     </div>
@@ -1362,7 +1746,7 @@ export default function MockEHRFrontend() {
             )}
 
             <ChartTabs activeTab={activeTab} onTab={handleTabChange} />
-            <ChartContent patient={patient} activeTab={activeTab} />
+            <ChartContent key={`${patient.id}-${activeTab}`} patient={patient} activeTab={activeTab} />
           </main>
         </div>
 
