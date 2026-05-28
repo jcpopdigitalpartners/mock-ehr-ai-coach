@@ -401,6 +401,18 @@ const patients = [
       "Check TB screening status",
       "Submit PA packet or request missing evidence",
     ],
+    notes: [
+      {
+        title: "Rheumatology follow-up",
+        meta: "Dr. L. Morgan · 2026-05-14",
+        text: "Patient has persistent inflammatory symptoms despite conventional therapy. Biologic start discussed pending payer authorization and safety screening.",
+      },
+      {
+        title: "Access team note",
+        meta: "Access coordinator · Today",
+        text: "PA packet not yet submitted. Diagnosis support present. TB screening is pending and must be verified before packet completion.",
+      },
+    ],
   },
   {
     id: "P-1172",
@@ -462,6 +474,18 @@ const patients = [
       { name: "Semaglutide", dose: "0.25 mg weekly", status: "Ready for review" },
     ],
     tasks: ["Confirm dose start", "Route to pharmacist", "Send patient pickup instructions"],
+    notes: [
+      {
+        title: "Endocrinology medication plan",
+        meta: "Dr. A. Ruiz · 2026-05-21",
+        text: "Semaglutide initiation approved after counseling on dose ramp, nausea precautions, and glucose monitoring. No renal contraindication documented.",
+      },
+      {
+        title: "Access team note",
+        meta: "Access coordinator · Today",
+        text: "Copay assistance eligibility confirmed. Route prescription to pharmacist review and prepare pickup instructions without additional payer escalation.",
+      },
+    ],
   },
   {
     id: "P-1309",
@@ -524,6 +548,18 @@ const patients = [
       { name: "Sacubitril/valsartan", dose: "24/26 mg BID", status: "Needs evidence" },
     ],
     tasks: ["Find latest echo", "Attach EF documentation", "Request prescriber clarification if absent"],
+    notes: [
+      {
+        title: "Cardiology follow-up",
+        meta: "Dr. S. Iyer · 2026-05-09",
+        text: "Patient reports improved dyspnea on current regimen. Coverage for sacubitril/valsartan requires current ejection fraction documentation before submission.",
+      },
+      {
+        title: "Access team note",
+        meta: "Access coordinator · Today",
+        text: "Latest echo is not attached to the packet. Locate EF documentation or request clarification from the prescriber before routing to payer review.",
+      },
+    ],
   },
 ];
 
@@ -1477,16 +1513,9 @@ function ChartContent({ patient, activeTab }) {
       <Card>
         <CardHeader icon={FileText} title="Clinical Notes" subtitle="Mock evidence excerpts" />
         <div className="notes-list">
-          <Note
-            title="Rheumatology follow-up"
-            meta="Dr. L. Morgan · 2026-05-14"
-            text="Patient has persistent inflammatory symptoms despite conventional therapy. Biologic start discussed pending payer authorization and safety screening."
-          />
-          <Note
-            title="Access team note"
-            meta="Access coordinator · Today"
-            text="PA packet not yet submitted. Diagnosis support present. TB screening is pending and must be verified before packet completion."
-          />
+          {patient.notes.map((note) => (
+            <Note key={`${patient.id}-${note.title}`} title={note.title} meta={note.meta} text={note.text} />
+          ))}
         </div>
       </Card>
     );
