@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Activity,
@@ -18,7 +18,10 @@ import {
   Lock,
   MessageSquareText,
   Pill,
+  Pause,
+  Play,
   PlayCircle,
+  RotateCcw,
   Search,
   ShieldCheck,
   Sparkles,
@@ -187,12 +190,50 @@ const styles = `
   .storyboard-title-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
   .storyboard-title { margin: 0; font-weight: 900; font-size: 13px; }
   .storyboard-subtitle { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
-  .video-placeholder { margin-top: 16px; overflow: hidden; border-radius: 18px; border: 1px solid var(--border); background: var(--slate-950); padding: 12px; color: white; }
-  .video-frame { aspect-ratio: 16 / 9; border-radius: 14px; display: grid; place-items: center; background: linear-gradient(135deg, #1e293b, #020617); text-align: center; font-size: 13px; }
-  .video-frame p { margin: 8px 0 0; }
-  .video-frame .small { color: var(--muted-2); font-size: 11px; margin-top: 4px; }
+  .video-player { margin-top: 16px; overflow: hidden; border-radius: 18px; border: 1px solid var(--border); background: var(--slate-950); padding: 12px; color: white; }
+  .video-frame { aspect-ratio: 16 / 9; border-radius: 14px; position: relative; overflow: hidden; background: var(--bg); color: var(--text); }
+  .video-scene { position: absolute; inset: 0; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+  .video-scene-label { position: absolute; top: 10px; left: 10px; z-index: 3; background: rgba(2, 6, 23, 0.82); color: white; border-radius: 999px; padding: 4px 10px; font-size: 10px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
+  .video-caption { position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; padding: 10px 12px 12px; background: linear-gradient(transparent, rgba(2, 6, 23, 0.92)); }
+  .video-caption p { margin: 0; color: #e2e8f0; font-size: 11px; line-height: 1.5; }
+  .video-caption strong { color: white; font-size: 11px; }
+  .video-cursor { position: absolute; z-index: 4; width: 14px; height: 14px; border-radius: 999px; background: white; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.9), 0 4px 12px rgba(15, 23, 42, 0.35); pointer-events: none; }
+  .video-highlight { position: relative; z-index: 2; box-shadow: 0 0 0 2px #3b82f6, 0 0 0 6px rgba(59, 130, 246, 0.22); border-radius: inherit; animation: videoPulse 1.4s ease-in-out infinite; }
+  @keyframes videoPulse { 0%, 100% { box-shadow: 0 0 0 2px #3b82f6, 0 0 0 6px rgba(59, 130, 246, 0.22); } 50% { box-shadow: 0 0 0 2px #60a5fa, 0 0 0 10px rgba(59, 130, 246, 0.12); } }
+  .video-mini-layout { display: grid; grid-template-columns: 34% 1fr; gap: 8px; flex: 1; min-height: 0; }
+  .video-mini-panel { background: white; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; font-size: 10px; }
+  .video-mini-panel-header { padding: 8px 10px; border-bottom: 1px solid var(--border-soft); font-weight: 800; color: var(--text); }
+  .video-mini-queue-item { padding: 8px 10px; border-bottom: 1px solid var(--border-soft); }
+  .video-mini-queue-item:last-child { border-bottom: 0; }
+  .video-mini-queue-item.dim { opacity: 0.45; }
+  .video-mini-queue-name { font-weight: 800; font-size: 10px; }
+  .video-mini-queue-med { color: var(--muted); margin-top: 2px; font-size: 9px; }
+  .video-mini-banner { background: linear-gradient(90deg, #020617, #0f172a); color: white; padding: 10px; border-radius: 12px; }
+  .video-mini-banner h4 { margin: 0; font-size: 12px; }
+  .video-mini-banner p { margin: 4px 0 0; color: #cbd5e1; font-size: 9px; line-height: 1.4; }
+  .video-mini-pills { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .video-mini-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+  .video-mini-tab { border: 1px solid var(--border); background: white; color: #475569; border-radius: 8px; padding: 4px 8px; font-size: 9px; font-weight: 800; }
+  .video-mini-tab.active { background: var(--slate-950); color: white; border-color: var(--slate-950); }
+  .video-mini-reason { border: 1px solid var(--amber-200); background: var(--amber-50); border-radius: 10px; padding: 10px; }
+  .video-mini-reason p { margin: 0; color: var(--amber-900); font-size: 9px; line-height: 1.5; }
+  .video-mini-note { border: 1px solid var(--border); background: #f8fafc; border-radius: 10px; padding: 10px; }
+  .video-mini-note h5 { margin: 0; font-size: 10px; }
+  .video-mini-note p { margin: 4px 0 0; color: #475569; font-size: 9px; line-height: 1.45; }
+  .video-mini-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: auto; }
+  .video-mini-action { border-radius: 10px; padding: 10px; text-align: center; font-size: 9px; font-weight: 800; border: 1px solid var(--border); }
+  .video-mini-action.wrong { background: #fff1f2; color: #be123c; border-color: #fecdd3; opacity: 0.55; text-decoration: line-through; }
+  .video-mini-action.right { background: var(--emerald-50); color: var(--emerald-700); border-color: var(--emerald-200); }
+  .video-controls { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+  .video-control-btn { border: 0; background: rgba(255,255,255,0.10); color: white; border-radius: 10px; padding: 7px 10px; display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; }
+  .video-control-btn:hover { background: rgba(255,255,255,0.16); }
+  .video-progress-wrap { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+  .video-progress-bar { height: 4px; border-radius: 999px; background: rgba(255,255,255,0.15); overflow: hidden; }
+  .video-progress-fill { height: 100%; background: #60a5fa; border-radius: inherit; transition: width 120ms linear; }
+  .video-progress-meta { display: flex; justify-content: space-between; color: #94a3b8; font-size: 10px; font-weight: 700; }
   .walkthrough-list { display: flex; flex-direction: column; gap: 8px; }
-  .walkthrough-step { border: 1px solid var(--border); background: white; border-radius: 18px; padding: 12px; }
+  .walkthrough-step { border: 1px solid var(--border); background: white; border-radius: 18px; padding: 12px; transition: border-color 150ms ease, box-shadow 150ms ease; }
+  .walkthrough-step.active { border-color: #93c5fd; box-shadow: 0 0 0 1px #bfdbfe; background: #f8fbff; }
   .walkthrough-step-row { display: flex; align-items: flex-start; gap: 12px; }
   .step-index { width: 28px; height: 28px; flex: 0 0 28px; border-radius: 999px; background: var(--slate-950); color: white; display: grid; place-items: center; font-size: 11px; font-weight: 900; }
   .step-title { margin: 0; font-weight: 900; font-size: 13px; }
@@ -557,9 +598,258 @@ function CoachFinding({ label, value }) {
   );
 }
 
+const WALKTHROUGH_STEP_MS = 4500;
+
+function CorrectionWalkthroughVideo({ patient, steps, correction, onStepChange }) {
+  const [playing, setPlaying] = useState(true);
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const rafRef = useRef(null);
+  const lastTickRef = useRef(null);
+
+  const totalMs = steps.length * WALKTHROUGH_STEP_MS;
+  const derivedStep = Math.min(steps.length - 1, Math.floor(elapsedMs / WALKTHROUGH_STEP_MS));
+
+  useEffect(() => {
+    onStepChange?.(derivedStep);
+  }, [derivedStep, onStepChange]);
+
+  useEffect(() => {
+    if (!playing) {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      lastTickRef.current = null;
+      return undefined;
+    }
+
+    const tick = (timestamp) => {
+      if (lastTickRef.current == null) {
+        lastTickRef.current = timestamp;
+      }
+      const delta = timestamp - lastTickRef.current;
+      lastTickRef.current = timestamp;
+      setElapsedMs((current) => {
+        const next = current + delta;
+        return next >= totalMs ? 0 : next;
+      });
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
+    rafRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+      }
+    };
+  }, [playing, totalMs]);
+
+  const stepProgress = ((elapsedMs % WALKTHROUGH_STEP_MS) / WALKTHROUGH_STEP_MS) * 100;
+  const totalProgress = (elapsedMs / totalMs) * 100;
+  const currentStep = steps[derivedStep];
+  const cursorTargets = [
+    { x: "18%", y: "28%" },
+    { x: "62%", y: "22%" },
+    { x: "58%", y: "52%" },
+    { x: "58%", y: "58%" },
+    { x: "72%", y: "82%" },
+  ];
+  const cursor = cursorTargets[derivedStep] || cursorTargets[0];
+
+  const restart = () => {
+    setElapsedMs(0);
+    setPlaying(true);
+    lastTickRef.current = null;
+  };
+
+  const seekToStep = (index) => {
+    setElapsedMs(index * WALKTHROUGH_STEP_MS);
+    setPlaying(true);
+    lastTickRef.current = null;
+  };
+
+  const formatTime = (ms) => {
+    const seconds = Math.floor(ms / 1000);
+    return `0:${String(seconds).padStart(2, "0")}`;
+  };
+
+  const blockedPatient = patient.status === "Blocked" ? patient : patients.find((item) => item.status === "Blocked") || patient;
+  const queuePreview = useMemo(() => {
+    const blocked = patients.find((item) => item.status === "Blocked");
+    const others = patients.filter((item) => item.id !== blocked?.id).slice(0, 2);
+    return blocked ? [blocked, ...others] : patients.slice(0, 3);
+  }, []);
+
+  const renderScene = () => {
+    if (derivedStep === 0) {
+      return (
+        <div className="video-mini-layout">
+          <div className="video-mini-panel">
+            <div className="video-mini-panel-header">Patient Queue</div>
+            {queuePreview.map((item) => {
+              const isTarget = item.id === blockedPatient.id;
+              return (
+                <div key={item.id} className={`video-mini-queue-item ${isTarget ? "video-highlight" : "dim"}`}>
+                  <div className="video-mini-queue-name">{item.name}</div>
+                  <div className="video-mini-queue-med">{item.medication}</div>
+                  <div className="video-mini-pills" style={{ marginTop: 6 }}>
+                    <StatusPill status={item.status} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="video-mini-panel" style={{ display: "grid", placeItems: "center", color: "var(--muted)", padding: 16 }}>
+            Select the blocked case with the highest access risk.
+          </div>
+        </div>
+      );
+    }
+
+    if (derivedStep === 1) {
+      return (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, height: "100%" }}>
+          <div className={`video-mini-banner video-highlight`}>
+            <h4>{blockedPatient.name}</h4>
+            <p>{blockedPatient.outcome}</p>
+            <div className="video-mini-pills">
+              <StatusPill status={blockedPatient.status} />
+              <RiskPill risk={blockedPatient.risk} />
+            </div>
+          </div>
+          <div className="video-mini-panel" style={{ padding: 10 }}>
+            <div className="video-mini-queue-name">Case state: {blockedPatient.status}</div>
+            <p style={{ margin: "6px 0 0", color: "var(--muted)", fontSize: 9, lineHeight: 1.5 }}>
+              Blocked means evidence review is required before any submit or escalate action.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    if (derivedStep === 2) {
+      return (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, height: "100%" }}>
+          <div className="video-mini-tabs">
+            <span className="video-mini-tab active">Overview</span>
+            <span className="video-mini-tab">Medications</span>
+            <span className="video-mini-tab">Orders</span>
+          </div>
+          <div className={`video-mini-reason video-highlight`}>
+            <p><strong>Access blocker:</strong> {blockedPatient.reason}</p>
+          </div>
+          <div className="video-mini-panel" style={{ padding: 10, marginTop: "auto" }}>
+            <p style={{ margin: 0, fontSize: 9, color: "#334155", lineHeight: 1.5 }}>{correction}</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (derivedStep === 3) {
+      return (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, height: "100%" }}>
+          <div className="video-mini-tabs">
+            <span className="video-mini-tab">Overview</span>
+            <span className="video-mini-tab">Labs</span>
+            <span className="video-mini-tab active">Notes</span>
+          </div>
+          <div className={`video-mini-note video-highlight`}>
+            <h5>Access team note</h5>
+            <p>PA packet not yet submitted. Diagnosis support present. TB screening is pending and must be verified before packet completion.</p>
+          </div>
+          <div className="video-mini-panel" style={{ padding: 10 }}>
+            <div className="video-mini-queue-name">Evidence checklist</div>
+            <p style={{ margin: "6px 0 0", fontSize: 9, color: "var(--muted)" }}>Diagnosis support · TB screening · Payer pathway</p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, height: "100%" }}>
+        <div className="video-mini-panel" style={{ padding: 10 }}>
+          <div className="video-mini-queue-name">Safest next action</div>
+          <p style={{ margin: "6px 0 0", fontSize: 9, color: "var(--muted)", lineHeight: 1.5 }}>
+            Submit only when evidence is complete; otherwise request missing information.
+          </p>
+        </div>
+        <div className="video-mini-actions">
+          <div className="video-mini-action wrong">Submit PA packet</div>
+          <div className={`video-mini-action right video-highlight`}>Request missing evidence</div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="video-player">
+      <div className="video-frame">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={derivedStep}
+            className="video-scene"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.28, ease: "easeOut" }}
+          >
+            <span className="video-scene-label">Step {derivedStep + 1} · {currentStep.title}</span>
+            {renderScene()}
+          </motion.div>
+        </AnimatePresence>
+
+        <motion.div
+          className="video-cursor"
+          animate={{ left: cursor.x, top: cursor.y }}
+          transition={{ type: "spring", stiffness: 120, damping: 18 }}
+        />
+
+        <div className="video-caption">
+          <p><strong>{currentStep.hint}</strong></p>
+          <p>{currentStep.rationale}</p>
+        </div>
+      </div>
+
+      <div className="video-controls">
+        <button className="video-control-btn" type="button" onClick={() => setPlaying((value) => !value)}>
+          {playing ? <Pause size={14} /> : <Play size={14} />}
+          {playing ? "Pause" : "Play"}
+        </button>
+        <button className="video-control-btn" type="button" onClick={restart}>
+          <RotateCcw size={14} />
+          Restart
+        </button>
+        <div className="video-progress-wrap">
+          <div className="video-progress-bar">
+            <div className="video-progress-fill" style={{ width: `${totalProgress}%` }} />
+          </div>
+          <div className="video-progress-meta">
+            <span>{formatTime(elapsedMs)} / {formatTime(totalMs)}</span>
+            <span>{Math.round(stepProgress)}% of step</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="video-mini-tabs" style={{ marginTop: 10 }}>
+        {steps.map((step, index) => (
+          <button
+            key={step.title}
+            type="button"
+            className={`video-mini-tab ${index === derivedStep ? "active" : ""}`}
+            onClick={() => seekToStep(index)}
+          >
+            {index + 1}. {step.title}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function AICoachPanel({ patient, onClose, onTelemetry }) {
   const [assessment, setAssessment] = useState(false);
   const [walkthrough, setWalkthrough] = useState(false);
+  const [activeVideoStep, setActiveVideoStep] = useState(0);
 
   const assessmentText = useMemo(() => {
     if (patient.status === "Blocked") {
@@ -595,6 +885,7 @@ function AICoachPanel({ patient, onClose, onTelemetry }) {
 
   const generateWalkthrough = () => {
     setWalkthrough(true);
+    setActiveVideoStep(0);
     onTelemetry?.("walkthrough.storyboard.generated", {
       patientId: patient.id,
       patientStatus: patient.status,
@@ -603,6 +894,10 @@ function AICoachPanel({ patient, onClose, onTelemetry }) {
       stepCount: walkthroughSteps.length,
     });
   };
+
+  const handleVideoStepChange = useCallback((stepIndex) => {
+    setActiveVideoStep(stepIndex);
+  }, []);
 
   return (
     <Card className="coach-card">
@@ -663,19 +958,18 @@ function AICoachPanel({ patient, onClose, onTelemetry }) {
                 </div>
                 <PlayCircle size={32} />
               </div>
-              <div className="video-placeholder">
-                <div className="video-frame">
-                  <div>
-                    <Video size={32} />
-                    <p><strong>Correct Path Simulation</strong></p>
-                    <p className="small">Hints · narration · checkpoints</p>
-                  </div>
-                </div>
+              <div className="video-player-wrap">
+                <CorrectionWalkthroughVideo
+                  patient={patient}
+                  steps={walkthroughSteps}
+                  correction={assessmentText.correction}
+                  onStepChange={handleVideoStepChange}
+                />
               </div>
             </div>
             <div className="walkthrough-list">
               {walkthroughSteps.map((step, index) => (
-                <div key={step.title} className="walkthrough-step">
+                <div key={step.title} className={`walkthrough-step ${index === activeVideoStep ? "active" : ""}`}>
                   <div className="walkthrough-step-row">
                     <div className="step-index">{index + 1}</div>
                     <div>
