@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import React, { useCallback, useId, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Activity,
@@ -18,10 +18,6 @@ import {
   Lock,
   MessageSquareText,
   Pill,
-  Pause,
-  Play,
-  PlayCircle,
-  RotateCcw,
   Search,
   ShieldCheck,
   Sparkles,
@@ -30,7 +26,6 @@ import {
   TrendingDown,
   TrendingUp,
   UserRound,
-  Video,
   X,
 } from "lucide-react";
 
@@ -173,11 +168,9 @@ const styles = `
   .metric-label { display: flex; align-items: center; gap: 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; font-size: 12px; font-weight: 800; }
   .metric-value { margin: 8px 0 0; font-size: 14px; font-weight: 800; color: var(--text); }
 
-  .coach-placeholder { border: 1px dashed #bfdbfe; background: rgba(239, 246, 255, 0.70); border-radius: 20px; padding: 16px; }
-  .coach-placeholder-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
-  .coach-placeholder-title { margin: 0; color: var(--blue-950); font-weight: 900; }
-  .coach-placeholder-copy { margin: 5px 0 0; color: var(--blue-700); font-size: 14px; }
   .coach-card { border-color: #bfdbfe; box-shadow: var(--shadow-md); font-size: 12px; }
+  .coach-sidecar { position: fixed; top: 24px; right: 24px; bottom: 24px; z-index: 20; width: min(420px, calc(100vw - 32px)); display: flex; flex-direction: column; gap: 12px; overflow: auto; }
+  .coach-sidecar .coach-card { flex: 0 0 auto; }
   .coach-header { background: var(--blue-950); color: white; padding: 16px; border-bottom: 1px solid var(--blue-100); }
   .coach-header-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .coach-title-wrap { display: flex; align-items: center; gap: 12px; }
@@ -191,63 +184,25 @@ const styles = `
   .prompt-title { display: flex; align-items: center; gap: 8px; font-weight: 900; font-size: 12px; margin-bottom: 8px; }
   .prompt-card p { margin: 0; color: #475569; font-size: 12px; line-height: 1.6; }
   .assessment-card { display: flex; flex-direction: column; gap: 12px; border: 1px solid #bfdbfe; background: var(--blue-50); border-radius: 18px; padding: 16px; }
+  .assessment-card.collapsed { padding: 12px 14px; gap: 4px; }
   .assessment-title { color: var(--blue-950); display: flex; align-items: center; gap: 8px; font-weight: 900; font-size: 13px; }
+  .assessment-collapsed-copy { margin: 0; color: var(--blue-700); font-size: 12px; }
   .finding-label { color: #3b82f6; text-transform: uppercase; letter-spacing: 0.06em; font-size: 10px; font-weight: 900; margin: 0; }
   .finding-value { color: var(--blue-950); font-size: 12px; line-height: 1.6; margin: 4px 0 0; }
-  .storyboard-card { border: 1px solid var(--border); border-radius: 18px; background: white; padding: 16px; }
-  .storyboard-title-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-  .storyboard-title { margin: 0; font-weight: 900; font-size: 13px; }
-  .storyboard-subtitle { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
-  .video-player { margin-top: 16px; overflow: hidden; border-radius: 18px; border: 1px solid var(--border); background: var(--slate-950); padding: 12px; color: white; }
-  .video-frame { aspect-ratio: 16 / 9; border-radius: 14px; position: relative; overflow: hidden; background: var(--bg); color: var(--text); }
-  .video-scene { position: absolute; inset: 0; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
-  .video-scene-label { position: absolute; top: 10px; left: 10px; z-index: 3; background: rgba(2, 6, 23, 0.82); color: white; border-radius: 999px; padding: 4px 10px; font-size: 10px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
-  .video-caption { position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; padding: 10px 12px 12px; background: linear-gradient(transparent, rgba(2, 6, 23, 0.92)); }
-  .video-caption p { margin: 0; color: #e2e8f0; font-size: 11px; line-height: 1.5; }
-  .video-caption strong { color: white; font-size: 11px; }
-  .video-cursor { position: absolute; z-index: 4; width: 14px; height: 14px; border-radius: 999px; background: white; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.9), 0 4px 12px rgba(15, 23, 42, 0.35); pointer-events: none; }
-  .video-highlight { position: relative; z-index: 2; box-shadow: 0 0 0 2px #3b82f6, 0 0 0 6px rgba(59, 130, 246, 0.22); border-radius: inherit; animation: videoPulse 1.4s ease-in-out infinite; }
-  @keyframes videoPulse { 0%, 100% { box-shadow: 0 0 0 2px #3b82f6, 0 0 0 6px rgba(59, 130, 246, 0.22); } 50% { box-shadow: 0 0 0 2px #60a5fa, 0 0 0 10px rgba(59, 130, 246, 0.12); } }
-  .video-mini-layout { display: grid; grid-template-columns: 34% 1fr; gap: 8px; flex: 1; min-height: 0; }
-  .video-mini-panel { background: white; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; font-size: 10px; }
-  .video-mini-panel-header { padding: 8px 10px; border-bottom: 1px solid var(--border-soft); font-weight: 800; color: var(--text); }
-  .video-mini-queue-item { padding: 8px 10px; border-bottom: 1px solid var(--border-soft); }
-  .video-mini-queue-item:last-child { border-bottom: 0; }
-  .video-mini-queue-item.dim { opacity: 0.45; }
-  .video-mini-queue-name { font-weight: 800; font-size: 10px; }
-  .video-mini-queue-med { color: var(--muted); margin-top: 2px; font-size: 9px; }
-  .video-mini-banner { background: linear-gradient(90deg, #020617, #0f172a); color: white; padding: 10px; border-radius: 12px; }
-  .video-mini-banner h4 { margin: 0; font-size: 12px; }
-  .video-mini-banner p { margin: 4px 0 0; color: #cbd5e1; font-size: 9px; line-height: 1.4; }
-  .video-mini-pills { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
-  .video-mini-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
-  .video-mini-tab { border: 1px solid var(--border); background: white; color: #475569; border-radius: 8px; padding: 4px 8px; font-size: 9px; font-weight: 800; }
-  .video-mini-tab.active { background: var(--slate-950); color: white; border-color: var(--slate-950); }
-  .video-mini-reason { border: 1px solid var(--amber-200); background: var(--amber-50); border-radius: 10px; padding: 10px; }
-  .video-mini-reason p { margin: 0; color: var(--amber-900); font-size: 9px; line-height: 1.5; }
-  .video-mini-note { border: 1px solid var(--border); background: #f8fafc; border-radius: 10px; padding: 10px; }
-  .video-mini-note h5 { margin: 0; font-size: 10px; }
-  .video-mini-note p { margin: 4px 0 0; color: #475569; font-size: 9px; line-height: 1.45; }
-  .video-mini-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: auto; }
-  .video-mini-action { border-radius: 10px; padding: 10px; text-align: center; font-size: 9px; font-weight: 800; border: 1px solid var(--border); }
-  .video-mini-action.wrong { background: #fff1f2; color: #be123c; border-color: #fecdd3; opacity: 0.55; text-decoration: line-through; }
-  .video-mini-action.right { background: var(--emerald-50); color: var(--emerald-700); border-color: var(--emerald-200); }
-  .video-controls { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
-  .video-control-btn { border: 0; background: rgba(255,255,255,0.10); color: white; border-radius: 10px; padding: 7px 10px; display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; }
-  .video-control-btn:hover { background: rgba(255,255,255,0.16); }
-  .video-progress-wrap { flex: 1; display: flex; flex-direction: column; gap: 4px; }
-  .video-progress-bar { height: 4px; border-radius: 999px; background: rgba(255,255,255,0.15); overflow: hidden; }
-  .video-progress-fill { height: 100%; background: #60a5fa; border-radius: inherit; transition: width 120ms linear; }
-  .video-progress-meta { display: flex; justify-content: space-between; color: #94a3b8; font-size: 10px; font-weight: 700; }
-  .walkthrough-list { display: flex; flex-direction: column; gap: 8px; }
-  .walkthrough-step { border: 1px solid var(--border); background: white; border-radius: 18px; padding: 12px; transition: border-color 150ms ease, box-shadow 150ms ease; }
-  .walkthrough-step.active { border-color: #93c5fd; box-shadow: 0 0 0 1px #bfdbfe; background: #f8fbff; }
-  .walkthrough-step-row { display: flex; align-items: flex-start; gap: 12px; }
-  .step-index { width: 28px; height: 28px; flex: 0 0 28px; border-radius: 999px; background: var(--slate-950); color: white; display: grid; place-items: center; font-size: 11px; font-weight: 900; }
-  .step-title { margin: 0; font-weight: 900; font-size: 13px; }
-  .step-hint { margin: 4px 0 0; color: #475569; font-size: 12px; }
-  .step-rationale { margin: 8px 0 0; color: var(--muted-2); font-size: 11px; line-height: 1.5; }
-
+  .guidance-callout { border: 1px solid #bfdbfe; background: #eff6ff; color: var(--blue-950); border-radius: 18px; padding: 12px 14px; display: flex; gap: 10px; align-items: flex-start; box-shadow: var(--shadow-sm); }
+  .guidance-callout p { margin: 0; }
+  .guidance-title { font-size: 13px; font-weight: 900; }
+  .guidance-copy { color: var(--blue-700); font-size: 12px; line-height: 1.5; margin-top: 3px !important; }
+  .guidance-highlight { position: relative; z-index: 1; outline: 3px solid #3b82f6 !important; outline-offset: 3px; box-shadow: 0 0 0 7px rgba(59, 130, 246, 0.16), var(--shadow-md) !important; }
+  .guidance-list { display: flex; flex-direction: column; gap: 8px; }
+  .guidance-step { width: 100%; text-align: left; border: 1px solid var(--border); background: white; border-radius: 18px; padding: 12px; transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease; color: var(--text); }
+  .guidance-step:hover { border-color: #bfdbfe; background: #f8fbff; }
+  .guidance-step.active { border-color: #93c5fd; box-shadow: 0 0 0 1px #bfdbfe; background: #f8fbff; }
+  .guidance-step-row { display: flex; align-items: flex-start; gap: 12px; }
+  .guidance-step-index { width: 28px; height: 28px; flex: 0 0 28px; border-radius: 999px; background: var(--slate-950); color: white; display: grid; place-items: center; font-size: 11px; font-weight: 900; }
+  .guidance-step-title { margin: 0; font-weight: 900; font-size: 13px; }
+  .guidance-step-hint { margin: 4px 0 0; color: #475569; font-size: 12px; line-height: 1.5; }
+  .guidance-step-rationale { margin: 8px 0 0; color: var(--muted-2); font-size: 11px; line-height: 1.5; }
   .tabs { display: flex; flex-wrap: wrap; gap: 8px; background: white; border: 1px solid var(--border); border-radius: 18px; padding: 8px; box-shadow: var(--shadow-sm); }
   .tab { border: 0; background: transparent; color: #475569; padding: 9px 12px; border-radius: 12px; font-size: 14px; font-weight: 800; }
   .tab:hover { background: #f1f5f9; color: var(--text); }
@@ -312,6 +267,7 @@ const styles = `
     .layout { grid-template-columns: 1fr; }
     .metrics-grid { grid-template-columns: repeat(2, 1fr); }
     .content-grid { grid-template-columns: 1fr; }
+    .coach-sidecar { top: auto; left: 16px; right: 16px; bottom: 16px; width: auto; max-height: calc(100vh - 32px); }
   }
 
   @media (max-width: 640px) {
@@ -840,33 +796,102 @@ function Lab({ lab, patientId }) {
   );
 }
 
-const walkthroughSteps = [
-  {
-    title: "Start with the blocked case",
-    hint: "Choose the item with the highest access risk, not the newest item.",
-    rationale: "The operational goal is to prevent therapy delay while protecting compliance requirements.",
-  },
-  {
-    title: "Confirm the workflow state",
-    hint: "Blocked means the case needs evidence review before action.",
-    rationale: "This prevents premature escalation or submission with an incomplete packet.",
-  },
-  {
-    title: "Read the reason before opening actions",
-    hint: "The reason tells you what evidence the payer is waiting on.",
-    rationale: "The right next step depends on the blocker, not on the action menu.",
-  },
-  {
-    title: "Verify supporting documentation",
-    hint: "Look for diagnosis support and TB screening before submitting PA materials.",
-    rationale: "This protects the patient from avoidable denial and rework.",
-  },
-  {
-    title: "Choose the safest next action",
-    hint: "Submit only when evidence is complete; otherwise request missing information.",
-    rationale: "The learner should connect UI action to clinical and operational outcome.",
-  },
-];
+function buildInAppGuidance(patient, correction) {
+  const highOrPendingLab = patient.labs.find((lab) => lab.flag === "high" || lab.pending) || patient.labs[0];
+  const accessNote = patient.notes.find((note) => note.title === "Access team note") || patient.notes[0];
+  const sharedSteps = [
+    {
+      id: "queue",
+      target: "queue",
+      title: "Open the right case",
+      hint: `Start with ${patient.name}'s current queue item.`,
+      rationale: "The learner begins from the selected patient's operational state.",
+    },
+    {
+      id: "state",
+      target: "state",
+      title: "Confirm current state",
+      hint: `Confirm this is a ${patient.status} case before choosing a workflow action.`,
+      rationale: "The next action depends on state, risk, payer requirements, and clinical context.",
+    },
+  ];
+
+  if (patient.status === "Ready") {
+    return [
+      ...sharedSteps,
+      {
+        id: "medications",
+        target: "medications",
+        title: "Review medication readiness",
+        hint: `Verify ${patient.medication} is ready for the next accountable reviewer.`,
+        rationale: "A ready case should move forward without reopening payer work that has already been resolved.",
+      },
+      {
+        id: "route-review",
+        target: "action",
+        title: "Route to pharmacist review",
+        hint: "Choose the action that advances dispensing without adding friction.",
+        rationale: "The learner should distinguish a ready case from a case that still requires evidence work.",
+      },
+    ];
+  }
+
+  if (patient.status === "Needs Info") {
+    return [
+      ...sharedSteps,
+      {
+        id: "labs",
+        target: "labs",
+        title: "Check evidence trend",
+        hint: `Review ${highOrPendingLab.name} before routing the case.`,
+        rationale: "Coverage logic depends on the specific evidence gap, not just a generic missing-document label.",
+        lab: highOrPendingLab,
+      },
+      {
+        id: "notes",
+        target: "notes",
+        title: "Find supporting note",
+        hint: "Use the note text to identify the exact missing evidence or clarification.",
+        rationale: "Patient-specific documentation keeps the action tied to the payer pathway.",
+        note: accessNote,
+      },
+      {
+        id: "request-clarification",
+        target: "action",
+        title: "Request clarification",
+        hint: "Ask for the missing evidence before sending the case forward.",
+        rationale: "This prevents avoidable denial and reduces downstream rework.",
+      },
+    ];
+  }
+
+  return [
+    ...sharedSteps,
+    {
+      id: "overview",
+      target: "overview",
+      title: "Read access context",
+      hint: "Read the reason before opening actions.",
+      rationale: "The right next step depends on the blocker, not on the action menu.",
+      correction,
+    },
+    {
+      id: "notes",
+      target: "notes",
+      title: "Verify supporting documentation",
+      hint: "Look for the evidence the payer is waiting on before submitting materials.",
+      rationale: "This protects the patient from avoidable denial and rework.",
+      note: accessNote,
+    },
+    {
+      id: "request-evidence",
+      target: "action",
+      title: "Request missing evidence",
+      hint: "Submit only when evidence is complete; otherwise request missing information.",
+      rationale: "The learner should connect UI action to clinical and operational outcome.",
+    },
+  ];
+}
 
 function Button({ children, className = "", variant = "primary", disabled = false, ...props }) {
   return (
@@ -912,7 +937,7 @@ function getStatusKey(status) {
   return status === "Needs Info" ? "needs-info" : status.toLowerCase();
 }
 
-function PatientQueue({ selectedId, onSelect }) {
+function PatientQueue({ selectedId, onSelect, guidanceStep }) {
   return (
     <Card>
       <CardHeader icon={ClipboardList} title="Patient Queue" subtitle="Synthetic medication access cases" />
@@ -925,11 +950,12 @@ function PatientQueue({ selectedId, onSelect }) {
           {patients.map((patient) => {
             const active = patient.id === selectedId;
             const statusKey = getStatusKey(patient.status);
+            const highlighted = guidanceStep?.target === "queue" && active;
             return (
               <button
                 key={patient.id}
                 type="button"
-                className={`patient-button queue-${statusKey} ${active ? "selected" : ""}`}
+                className={`patient-button queue-${statusKey} ${active ? "selected" : ""} ${highlighted ? "guidance-highlight" : ""}`}
                 onClick={() => onSelect(patient.id)}
               >
                 <div className="patient-top">
@@ -967,9 +993,9 @@ function Metric({ label, value, icon: Icon }) {
   );
 }
 
-function PatientBanner({ patient }) {
+function PatientBanner({ patient, guidanceStep }) {
   return (
-    <section className="patient-banner">
+    <section className={`patient-banner ${guidanceStep?.target === "state" ? "guidance-highlight" : ""}`}>
       <div className="banner-hero">
         <div className="banner-row">
           <div className="patient-identity">
@@ -1003,25 +1029,6 @@ function PatientBanner({ patient }) {
   );
 }
 
-function CoachPlaceholder({ onInsert }) {
-  return (
-    <div className="coach-placeholder">
-      <div className="coach-placeholder-row">
-        <div>
-          <p className="coach-placeholder-title">Need help interpreting the workflow?</p>
-          <p className="coach-placeholder-copy">
-            Insert the AI Coach here to assess the learner’s mental model in the context of this patient case.
-          </p>
-        </div>
-        <button className="btn btn-secondary" type="button" onClick={onInsert}>
-          <Bot size={16} />
-          Insert AI Coach
-        </button>
-      </div>
-    </div>
-  );
-}
-
 function CoachFinding({ label, value }) {
   return (
     <div>
@@ -1031,258 +1038,10 @@ function CoachFinding({ label, value }) {
   );
 }
 
-const WALKTHROUGH_STEP_MS = 4500;
-
-function CorrectionWalkthroughVideo({ patient, steps, correction, onStepChange }) {
-  const [playing, setPlaying] = useState(true);
-  const [elapsedMs, setElapsedMs] = useState(0);
-  const rafRef = useRef(null);
-  const lastTickRef = useRef(null);
-
-  const totalMs = steps.length * WALKTHROUGH_STEP_MS;
-  const derivedStep = Math.min(steps.length - 1, Math.floor(elapsedMs / WALKTHROUGH_STEP_MS));
-
-  useEffect(() => {
-    onStepChange?.(derivedStep);
-  }, [derivedStep, onStepChange]);
-
-  useEffect(() => {
-    if (!playing) {
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
-      lastTickRef.current = null;
-      return undefined;
-    }
-
-    const tick = (timestamp) => {
-      if (lastTickRef.current == null) {
-        lastTickRef.current = timestamp;
-      }
-      const delta = timestamp - lastTickRef.current;
-      lastTickRef.current = timestamp;
-      setElapsedMs((current) => {
-        const next = current + delta;
-        return next >= totalMs ? 0 : next;
-      });
-      rafRef.current = requestAnimationFrame(tick);
-    };
-
-    rafRef.current = requestAnimationFrame(tick);
-    return () => {
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-      }
-    };
-  }, [playing, totalMs]);
-
-  const stepProgress = ((elapsedMs % WALKTHROUGH_STEP_MS) / WALKTHROUGH_STEP_MS) * 100;
-  const totalProgress = (elapsedMs / totalMs) * 100;
-  const currentStep = steps[derivedStep];
-  const cursorTargets = [
-    { x: "18%", y: "28%" },
-    { x: "62%", y: "22%" },
-    { x: "58%", y: "52%" },
-    { x: "58%", y: "58%" },
-    { x: "72%", y: "82%" },
-  ];
-  const cursor = cursorTargets[derivedStep] || cursorTargets[0];
-
-  const restart = () => {
-    setElapsedMs(0);
-    setPlaying(true);
-    lastTickRef.current = null;
-  };
-
-  const seekToStep = (index) => {
-    setElapsedMs(index * WALKTHROUGH_STEP_MS);
-    setPlaying(true);
-    lastTickRef.current = null;
-  };
-
-  const formatTime = (ms) => {
-    const seconds = Math.floor(ms / 1000);
-    return `0:${String(seconds).padStart(2, "0")}`;
-  };
-
-  const blockedPatient = patient.status === "Blocked" ? patient : patients.find((item) => item.status === "Blocked") || patient;
-  const queuePreview = useMemo(() => {
-    const blocked = patients.find((item) => item.status === "Blocked");
-    const others = patients.filter((item) => item.id !== blocked?.id).slice(0, 2);
-    return blocked ? [blocked, ...others] : patients.slice(0, 3);
-  }, []);
-
-  const renderScene = () => {
-    if (derivedStep === 0) {
-      return (
-        <div className="video-mini-layout">
-          <div className="video-mini-panel">
-            <div className="video-mini-panel-header">Patient Queue</div>
-            {queuePreview.map((item) => {
-              const isTarget = item.id === blockedPatient.id;
-              return (
-                <div key={item.id} className={`video-mini-queue-item ${isTarget ? "video-highlight" : "dim"}`}>
-                  <div className="video-mini-queue-name">{item.name}</div>
-                  <div className="video-mini-queue-med">{item.medication}</div>
-                  <div className="video-mini-pills" style={{ marginTop: 6 }}>
-                    <StatusPill status={item.status} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <div className="video-mini-panel" style={{ display: "grid", placeItems: "center", color: "var(--muted)", padding: 16 }}>
-            Select the blocked case with the highest access risk.
-          </div>
-        </div>
-      );
-    }
-
-    if (derivedStep === 1) {
-      return (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, height: "100%" }}>
-          <div className={`video-mini-banner video-highlight`}>
-            <h4>{blockedPatient.name}</h4>
-            <p>{blockedPatient.outcome}</p>
-            <div className="video-mini-pills">
-              <StatusPill status={blockedPatient.status} />
-              <RiskPill risk={blockedPatient.risk} />
-            </div>
-          </div>
-          <div className="video-mini-panel" style={{ padding: 10 }}>
-            <div className="video-mini-queue-name">Case state: {blockedPatient.status}</div>
-            <p style={{ margin: "6px 0 0", color: "var(--muted)", fontSize: 9, lineHeight: 1.5 }}>
-              Blocked means evidence review is required before any submit or escalate action.
-            </p>
-          </div>
-        </div>
-      );
-    }
-
-    if (derivedStep === 2) {
-      return (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, height: "100%" }}>
-          <div className="video-mini-tabs">
-            <span className="video-mini-tab active">Overview</span>
-            <span className="video-mini-tab">Medications</span>
-            <span className="video-mini-tab">Orders</span>
-          </div>
-          <div className={`video-mini-reason video-highlight`}>
-            <p><strong>Access blocker:</strong> {blockedPatient.reason}</p>
-          </div>
-          <div className="video-mini-panel" style={{ padding: 10, marginTop: "auto" }}>
-            <p style={{ margin: 0, fontSize: 9, color: "#334155", lineHeight: 1.5 }}>{correction}</p>
-          </div>
-        </div>
-      );
-    }
-
-    if (derivedStep === 3) {
-      return (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, height: "100%" }}>
-          <div className="video-mini-tabs">
-            <span className="video-mini-tab">Overview</span>
-            <span className="video-mini-tab">Labs</span>
-            <span className="video-mini-tab active">Notes</span>
-          </div>
-          <div className={`video-mini-note video-highlight`}>
-            <h5>Access team note</h5>
-            <p>PA packet not yet submitted. Diagnosis support present. TB screening is pending and must be verified before packet completion.</p>
-          </div>
-          <div className="video-mini-panel" style={{ padding: 10 }}>
-            <div className="video-mini-queue-name">Evidence checklist</div>
-            <p style={{ margin: "6px 0 0", fontSize: 9, color: "var(--muted)" }}>Diagnosis support · TB screening · Payer pathway</p>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, height: "100%" }}>
-        <div className="video-mini-panel" style={{ padding: 10 }}>
-          <div className="video-mini-queue-name">Safest next action</div>
-          <p style={{ margin: "6px 0 0", fontSize: 9, color: "var(--muted)", lineHeight: 1.5 }}>
-            Submit only when evidence is complete; otherwise request missing information.
-          </p>
-        </div>
-        <div className="video-mini-actions">
-          <div className="video-mini-action wrong">Submit PA packet</div>
-          <div className={`video-mini-action right video-highlight`}>Request missing evidence</div>
-        </div>
-      </div>
-    );
-  };
-
-  return (
-    <div className="video-player">
-      <div className="video-frame">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={derivedStep}
-            className="video-scene"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.28, ease: "easeOut" }}
-          >
-            <span className="video-scene-label">Step {derivedStep + 1} · {currentStep.title}</span>
-            {renderScene()}
-          </motion.div>
-        </AnimatePresence>
-
-        <motion.div
-          className="video-cursor"
-          animate={{ left: cursor.x, top: cursor.y }}
-          transition={{ type: "spring", stiffness: 120, damping: 18 }}
-        />
-
-        <div className="video-caption">
-          <p><strong>{currentStep.hint}</strong></p>
-          <p>{currentStep.rationale}</p>
-        </div>
-      </div>
-
-      <div className="video-controls">
-        <button className="video-control-btn" type="button" onClick={() => setPlaying((value) => !value)}>
-          {playing ? <Pause size={14} /> : <Play size={14} />}
-          {playing ? "Pause" : "Play"}
-        </button>
-        <button className="video-control-btn" type="button" onClick={restart}>
-          <RotateCcw size={14} />
-          Restart
-        </button>
-        <div className="video-progress-wrap">
-          <div className="video-progress-bar">
-            <div className="video-progress-fill" style={{ width: `${totalProgress}%` }} />
-          </div>
-          <div className="video-progress-meta">
-            <span>{formatTime(elapsedMs)} / {formatTime(totalMs)}</span>
-            <span>{Math.round(stepProgress)}% of step</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="video-mini-tabs" style={{ marginTop: 10 }}>
-        {steps.map((step, index) => (
-          <button
-            key={step.title}
-            type="button"
-            className={`video-mini-tab ${index === derivedStep ? "active" : ""}`}
-            onClick={() => seekToStep(index)}
-          >
-            {index + 1}. {step.title}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function AICoachPanel({ patient, onClose, onTelemetry }) {
+function AICoachPanel({ patient, onClose, onTelemetry, onGuidanceStepChange }) {
   const [assessment, setAssessment] = useState(false);
-  const [walkthrough, setWalkthrough] = useState(false);
-  const [activeVideoStep, setActiveVideoStep] = useState(0);
+  const [guidanceStarted, setGuidanceStarted] = useState(false);
+  const [activeGuidanceStep, setActiveGuidanceStep] = useState(0);
 
   const assessmentText = useMemo(() => {
     if (patient.status === "Blocked") {
@@ -1306,6 +1065,11 @@ function AICoachPanel({ patient, onClose, onTelemetry }) {
     };
   }, [patient]);
 
+  const guidanceSteps = useMemo(
+    () => buildInAppGuidance(patient, assessmentText.correction),
+    [assessmentText.correction, patient]
+  );
+
   const generateAssessment = () => {
     setAssessment(true);
     onTelemetry?.("ai.assessment.generated", {
@@ -1316,21 +1080,31 @@ function AICoachPanel({ patient, onClose, onTelemetry }) {
     });
   };
 
-  const generateWalkthrough = () => {
-    setWalkthrough(true);
-    setActiveVideoStep(0);
-    onTelemetry?.("walkthrough.storyboard.generated", {
+  const startGuidance = () => {
+    setGuidanceStarted(true);
+    setActiveGuidanceStep(0);
+    onGuidanceStepChange?.(guidanceSteps[0] || null);
+    onTelemetry?.("guidance.started", {
       patientId: patient.id,
       patientStatus: patient.status,
       risk: patient.risk,
-      workflowPhase: "outcome_guided_walkthrough",
-      stepCount: walkthroughSteps.length,
+      stepCount: guidanceSteps.length,
+      path: guidanceSteps.map((step) => step.id),
     });
   };
 
-  const handleVideoStepChange = useCallback((stepIndex) => {
-    setActiveVideoStep(stepIndex);
-  }, []);
+  const selectGuidanceStep = useCallback(
+    (stepIndex) => {
+      setActiveGuidanceStep(stepIndex);
+      onGuidanceStepChange?.(guidanceSteps[stepIndex] || null);
+      onTelemetry?.("guidance.step.selected", {
+        patientId: patient.id,
+        stepIndex,
+        stepId: guidanceSteps[stepIndex]?.id,
+      });
+    },
+    [guidanceSteps, onGuidanceStepChange, onTelemetry, patient.id]
+  );
 
   return (
     <Card className="coach-card">
@@ -1366,54 +1140,46 @@ function AICoachPanel({ patient, onClose, onTelemetry }) {
         </Button>
 
         {assessment ? (
-          <div className="assessment-card">
+          <div className={`assessment-card ${guidanceStarted ? "collapsed" : ""}`}>
             <div className="assessment-title">
               <HelpCircle size={16} />
-              Assessment
+              {guidanceStarted ? "Assessment complete" : "Assessment"}
             </div>
-            <CoachFinding label="Likely gap" value={assessmentText.gap} />
-            <CoachFinding label="Correction" value={assessmentText.correction} />
-            <CoachFinding label="Outcome context" value={assessmentText.outcome} />
-            <Button variant="secondary" className="btn-full" onClick={generateWalkthrough}>
-              <Video size={16} />
-              Generate Outcome-Guided Walkthrough
-            </Button>
+            {guidanceStarted ? (
+              <p className="assessment-collapsed-copy">Details collapsed while in-app guidance is active.</p>
+            ) : (
+              <>
+                <CoachFinding label="Likely gap" value={assessmentText.gap} />
+                <CoachFinding label="Correction" value={assessmentText.correction} />
+                <CoachFinding label="Outcome context" value={assessmentText.outcome} />
+                <Button variant="secondary" className="btn-full" onClick={startGuidance}>
+                  <Sparkles size={16} />
+                  Start In-App Guidance
+                </Button>
+              </>
+            )}
           </div>
         ) : null}
 
-        {walkthrough ? (
-          <div className="coach-body" style={{ padding: 0 }}>
-            <div className="storyboard-card">
-              <div className="storyboard-title-row">
-                <div>
-                  <p className="storyboard-title">Video storyboard</p>
-                  <p className="storyboard-subtitle">Generated from parsed AI feedback</p>
-                </div>
-                <PlayCircle size={32} />
-              </div>
-              <div className="video-player-wrap">
-                <CorrectionWalkthroughVideo
-                  patient={patient}
-                  steps={walkthroughSteps}
-                  correction={assessmentText.correction}
-                  onStepChange={handleVideoStepChange}
-                />
-              </div>
-            </div>
-            <div className="walkthrough-list">
-              {walkthroughSteps.map((step, index) => (
-                <div key={step.title} className={`walkthrough-step ${index === activeVideoStep ? "active" : ""}`}>
-                  <div className="walkthrough-step-row">
-                    <div className="step-index">{index + 1}</div>
-                    <div>
-                      <p className="step-title">{step.title}</p>
-                      <p className="step-hint">{step.hint}</p>
-                      <p className="step-rationale">{step.rationale}</p>
-                    </div>
+        {guidanceStarted ? (
+          <div className="guidance-list">
+            {guidanceSteps.map((step, index) => (
+              <button
+                key={step.id}
+                type="button"
+                className={`guidance-step ${index === activeGuidanceStep ? "active" : ""}`}
+                onClick={() => selectGuidanceStep(index)}
+              >
+                <div className="guidance-step-row">
+                  <div className="guidance-step-index">{index + 1}</div>
+                  <div>
+                    <p className="guidance-step-title">{step.title}</p>
+                    <p className="guidance-step-hint">{step.hint}</p>
+                    <p className="guidance-step-rationale">{step.rationale}</p>
                   </div>
                 </div>
-              ))}
-            </div>
+              </button>
+            ))}
           </div>
         ) : null}
       </div>
@@ -1452,14 +1218,17 @@ function Note({ title, meta, text }) {
   );
 }
 
-function ChartContent({ patient, activeTab }) {
+function ChartContent({ patient, activeTab, guidanceStep }) {
   if (activeTab === "Medications") {
     return (
       <Card>
         <CardHeader icon={Pill} title="Medication List" subtitle="Current and pending therapies" />
         <div className="list">
           {patient.meds.map((med) => (
-            <div key={med.name} className="list-row">
+            <div
+              key={med.name}
+              className={`list-row ${guidanceStep?.target === "medications" && med.name === patient.medication ? "guidance-highlight" : ""}`}
+            >
               <div>
                 <p className="list-title">{med.name}</p>
                 <p className="list-copy">{med.dose}</p>
@@ -1478,7 +1247,9 @@ function ChartContent({ patient, activeTab }) {
         <CardHeader icon={HeartPulse} title="Recent Labs" subtitle="7-day trend · current reading" />
         <div className="vitals-grid">
           {patient.labs.map((lab) => (
-            <Lab key={lab.name} lab={lab} patientId={patient.id} />
+            <div key={lab.name} className={guidanceStep?.target === "labs" && guidanceStep.lab?.name === lab.name ? "guidance-highlight" : ""}>
+              <Lab lab={lab} patientId={patient.id} />
+            </div>
           ))}
         </div>
       </Card>
@@ -1491,7 +1262,7 @@ function ChartContent({ patient, activeTab }) {
         <CardHeader icon={ClipboardList} title="Access Tasks" subtitle="Operational checklist for this case" />
         <div className="task-list">
           {patient.tasks.map((task, index) => (
-            <div key={task} className="task-card">
+            <div key={task} className={`task-card ${guidanceStep?.target === "action" && index === 0 ? "guidance-highlight" : ""}`}>
               <div className="task-icon">
                 {index === 0 ? <AlertTriangle size={16} color="#d97706" /> : <CheckCircle2 size={16} color="#94a3b8" />}
               </div>
@@ -1514,7 +1285,9 @@ function ChartContent({ patient, activeTab }) {
         <CardHeader icon={FileText} title="Clinical Notes" subtitle="Mock evidence excerpts" />
         <div className="notes-list">
           {patient.notes.map((note) => (
-            <Note key={`${patient.id}-${note.title}`} title={note.title} meta={note.meta} text={note.text} />
+            <div key={`${patient.id}-${note.title}`} className={guidanceStep?.target === "notes" && guidanceStep.note?.title === note.title ? "guidance-highlight" : ""}>
+              <Note title={note.title} meta={note.meta} text={note.text} />
+            </div>
           ))}
         </div>
       </Card>
@@ -1526,7 +1299,7 @@ function ChartContent({ patient, activeTab }) {
       <Card>
         <CardHeader icon={Info} title="Reason Panel" subtitle="Why this case needs attention" />
         <div className="panel-body">
-          <div className="reason-box">
+          <div className={`reason-box ${guidanceStep?.target === "overview" ? "guidance-highlight" : ""}`}>
             <div className="reason-row">
               <AlertTriangle size={20} />
               <div>
@@ -1619,12 +1392,26 @@ function TelemetryPanel({ events, onClear }) {
   );
 }
 
+function tabForGuidanceStep(step) {
+  const tabByTarget = {
+    queue: "Overview",
+    state: "Overview",
+    overview: "Overview",
+    labs: "Labs",
+    medications: "Medications",
+    notes: "Notes",
+    action: "Orders",
+  };
+  return tabByTarget[step?.target] || null;
+}
+
 export default function MockEHRFrontend() {
   const [selectedId, setSelectedId] = useState(patients[0].id);
   const [activeTab, setActiveTab] = useState("Overview");
   const [coachInserted, setCoachInserted] = useState(false);
   const [animationsEnabled, setAnimationsEnabled] = useState(true);
   const [telemetryEvents, setTelemetryEvents] = useState([]);
+  const [guidanceStep, setGuidanceStep] = useState(null);
 
   const patient = patients.find((item) => item.id === selectedId) || patients[0];
 
@@ -1646,6 +1433,7 @@ export default function MockEHRFrontend() {
 
   const removeCoach = useCallback(() => {
     setCoachInserted(false);
+    setGuidanceStep(null);
     track("coach.removed", {
       patientId: patient.id,
       source: "panel_close",
@@ -1656,6 +1444,7 @@ export default function MockEHRFrontend() {
     (patientId) => {
       const nextPatient = patients.find((item) => item.id === patientId);
       setSelectedId(patientId);
+      setGuidanceStep(null);
       track("patient.selected", {
         patientId,
         status: nextPatient?.status,
@@ -1669,6 +1458,7 @@ export default function MockEHRFrontend() {
   const handleTabChange = useCallback(
     (tab) => {
       setActiveTab(tab);
+      setGuidanceStep(null);
       track("chart.tab_viewed", {
         patientId: patient.id,
         tab,
@@ -1685,6 +1475,14 @@ export default function MockEHRFrontend() {
       return nextValue;
     });
   }, [track]);
+
+  const handleGuidanceStepChange = useCallback((step) => {
+    setGuidanceStep(step);
+    const nextTab = tabForGuidanceStep(step);
+    if (nextTab) {
+      setActiveTab(nextTab);
+    }
+  }, []);
 
   return (
     <div className="app-shell">
@@ -1715,7 +1513,7 @@ export default function MockEHRFrontend() {
             </Button>
             <button className="link-button" type="button" onClick={() => insertCoach("header_link")}>
               <Bot size={16} />
-              Insert AI Coach into workflow
+              Open AI Coach Sidecar
             </button>
             <button
               className={`toggle-button ${animationsEnabled ? "on" : ""}`}
@@ -1733,51 +1531,65 @@ export default function MockEHRFrontend() {
 
         <div className="layout">
           <aside className="sidebar-column">
-            <PatientQueue selectedId={selectedId} onSelect={handlePatientSelect} />
+            <PatientQueue selectedId={selectedId} onSelect={handlePatientSelect} guidanceStep={guidanceStep} />
           </aside>
 
           <main className="main-column">
-            <PatientBanner patient={patient} />
-
-            {animationsEnabled ? (
-              <AnimatePresence initial={false} mode="popLayout">
-                {!coachInserted ? (
-                  <motion.div
-                    key="coach-placeholder"
-                    layout
-                    initial={{ opacity: 0, y: -10, scale: 0.98 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -8, scale: 0.98 }}
-                    transition={{ duration: 0.22, ease: "easeOut" }}
-                  >
-                    <CoachPlaceholder onInsert={() => insertCoach("inline_placeholder")} />
-                  </motion.div>
-                ) : null}
-
-                {coachInserted ? (
-                  <motion.div
-                    key="ai-coach-panel"
-                    layout
-                    initial={{ opacity: 0, y: -18, scale: 0.97 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -12, scale: 0.98 }}
-                    transition={{ duration: 0.32, ease: "easeOut" }}
-                  >
-                    <AICoachPanel patient={patient} onTelemetry={track} onClose={removeCoach} />
-                  </motion.div>
-                ) : null}
-              </AnimatePresence>
-            ) : (
-              <>
-                {!coachInserted ? <CoachPlaceholder onInsert={() => insertCoach("inline_placeholder")} /> : null}
-                {coachInserted ? <AICoachPanel patient={patient} onTelemetry={track} onClose={removeCoach} /> : null}
-              </>
-            )}
+            <PatientBanner patient={patient} guidanceStep={guidanceStep} />
 
             <ChartTabs activeTab={activeTab} onTab={handleTabChange} />
-            <ChartContent key={`${patient.id}-${activeTab}`} patient={patient} activeTab={activeTab} />
+            <ChartContent key={`${patient.id}-${activeTab}`} patient={patient} activeTab={activeTab} guidanceStep={guidanceStep} />
           </main>
         </div>
+
+        {animationsEnabled ? (
+          <AnimatePresence>
+            {coachInserted ? (
+              <motion.aside
+                key="ai-coach-sidecar"
+                className="coach-sidecar"
+                initial={{ opacity: 0, x: 28 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 28 }}
+                transition={{ duration: 0.24, ease: "easeOut" }}
+              >
+                {guidanceStep ? (
+                  <div className="guidance-callout">
+                    <Sparkles size={16} />
+                    <div>
+                      <p className="guidance-title">{guidanceStep.title}</p>
+                      <p className="guidance-copy">{guidanceStep.hint}</p>
+                    </div>
+                  </div>
+                ) : null}
+                <AICoachPanel
+                  patient={patient}
+                  onTelemetry={track}
+                  onClose={removeCoach}
+                  onGuidanceStepChange={handleGuidanceStepChange}
+                />
+              </motion.aside>
+            ) : null}
+          </AnimatePresence>
+        ) : coachInserted ? (
+          <aside className="coach-sidecar">
+            {guidanceStep ? (
+              <div className="guidance-callout">
+                <Sparkles size={16} />
+                <div>
+                  <p className="guidance-title">{guidanceStep.title}</p>
+                  <p className="guidance-copy">{guidanceStep.hint}</p>
+                </div>
+              </div>
+            ) : null}
+            <AICoachPanel
+              patient={patient}
+              onTelemetry={track}
+              onClose={removeCoach}
+              onGuidanceStepChange={handleGuidanceStepChange}
+            />
+          </aside>
+        ) : null}
 
         <TelemetryPanel events={telemetryEvents} onClear={() => setTelemetryEvents([])} />
       </div>
